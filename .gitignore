@@ -1,0 +1,7 @@
+google-ads.yaml
+.env
+.env.local
+output/
+__pycache__/
+*.pyc
+.vercel/

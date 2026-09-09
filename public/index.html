@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Google Ads Automation</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 720px; margin: 40px auto; color: #222; }
+  h1 { border-bottom: 2px solid #4285F4; padding-bottom: 8px; }
+  label { display: block; margin: 12px 0 4px; font-size: 13px; color: #555; }
+  input { width: 100%; padding: 8px; box-sizing: border-box; font-size: 14px; }
+  button { margin: 16px 8px 0 0; padding: 10px 16px; border: none; border-radius: 6px;
+           background: #4285F4; color: white; font-size: 14px; cursor: pointer; }
+  button.danger { background: #d93025; }
+  pre { background: #f4f6fa; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+  .warn { color: #d93025; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Google Ads Automation Dashboard</h1>
+  <p>Runs the deployed API against your Google Ads account. Credentials live in Vercel's
+     environment variables — nothing here is stored anywhere but your browser.</p>
+
+  <label>Customer ID (e.g. 123-456-7890)</label>
+  <input id="customerId" placeholder="123-456-7890">
+
+  <label>Lookback window (days)</label>
+  <input id="days" value="30">
+
+  <label>Deploy secret (only needed for the Deploy buttons)</label>
+  <input id="secret" type="password" placeholder="matches DEPLOY_SECRET on Vercel">
+
+  <div>
+    <button onclick="callApi('analyze')">1. Analyze</button>
+    <button onclick="callApi('suggest')">2. Suggest</button>
+    <button onclick="callApi('deploy', false)">3. Deploy (dry run)</button>
+    <button class="danger" onclick="callApi('deploy', true)">4. Deploy LIVE</button>
+  </div>
+  <p class="warn">"Deploy LIVE" makes real changes to your ad account. Review the suggest
+     output first.</p>
+
+  <pre id="result">Results will appear here...</pre>
+
+  <script>
+    let lastPlan = null;
+
+    async function callApi(endpoint, live) {
+      const customer_id = document.getElementById('customerId').value.trim();
+      const days = parseInt(document.getElementById('days').value || '30', 10);
+      const secret = document.getElementById('secret').value;
+      const resultEl = document.getElementById('result');
+
+      if (!customer_id) { alert('Enter a customer ID first.'); return; }
+
+      let body = { customer_id, days };
+      let headers = { 'Content-Type': 'application/json' };
+
+      if (endpoint === 'deploy') {
+        if (!lastPlan) { alert('Run Suggest first to generate a plan.'); return; }
+        body = { customer_id, plan: lastPlan, live: !!live };
+        headers['X-Deploy-Secret'] = secret;
+      }
+
+      resultEl.textContent = 'Loading...';
+      try {
+        const res = await fetch(`/api/${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (endpoint === 'suggest') lastPlan = data;
+        resultEl.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        resultEl.textContent = 'Error: ' + err;
+      }
+    }
+  </script>
+</body>
+</html>
