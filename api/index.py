@@ -29,6 +29,11 @@ from lib.deploy import deploy as run_deploy
 app = Flask(__name__)
 
 
+def _internal_error(message: str, exc: BaseException):
+    app.logger.exception(message, exc_info=exc)
+    return jsonify({"error": message}), 500
+
+
 def _require_secret(payload: dict) -> bool:
     expected = os.environ.get("DEPLOY_SECRET")
     if not expected:
@@ -52,7 +57,7 @@ def api_analyze():
     try:
         result = analyze(customer_id, days)
     except SystemExit as e:
-        return jsonify({"error": str(e)}), 500
+        return _internal_error("analyze request failed", e)
     campaigns = result["campaigns"]
     return jsonify({
         "summary": result["summary"],
@@ -71,7 +76,7 @@ def api_suggest():
         result = analyze(customer_id, days)
         plan = build_suggestions(result)
     except SystemExit as e:
-        return jsonify({"error": str(e)}), 500
+        return _internal_error("suggest request failed", e)
     return jsonify(plan)
 
 
@@ -90,9 +95,9 @@ def api_deploy():
     try:
         log = run_deploy(customer_id, plan, live=live)
     except SystemExit as e:
-        return jsonify({"error": str(e)}), 500
+        return _internal_error("deploy request failed", e)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _internal_error("deploy request failed", e)
 
     return jsonify({"live": live, "actions": log})
 
